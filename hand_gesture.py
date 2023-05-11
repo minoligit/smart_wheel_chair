@@ -73,8 +73,8 @@ while True:
         except:
             pass
         
-    cv2.imshow('frame', frame)
-    cv2.waitKey(1)
+        cv2.imshow('frame', frame)
+        cv2.waitKey(1)
     
     if cv2.waitKey(25) == ord('q'):
         break
