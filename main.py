@@ -23,8 +23,9 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
 
-# Reading the mapping values for stereo image rectification
-cv_file = cv2.FileStorage("F:/Assignments 7 sem/FYP/smart_wheel_chair/data_ob/stereo_rectify_maps.xml", cv2.FILE_STORAGE_READ)
+
+# Reading the mapping values for stereo image 
+cv_file = cv2.FileStorage("./data_ob/stereo_rectify_maps.xml", cv2.FILE_STORAGE_READ)
 Left_Stereo_Map_x = cv_file.getNode("Left_Stereo_Map_x").mat()
 Left_Stereo_Map_y = cv_file.getNode("Left_Stereo_Map_y").mat()
 Right_Stereo_Map_x = cv_file.getNode("Right_Stereo_Map_x").mat()
