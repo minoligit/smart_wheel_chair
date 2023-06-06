@@ -25,7 +25,7 @@ hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
 
 
 # Reading the mapping values for stereo image 
-cv_file = cv2.FileStorage("./data_ob/stereo_rectify_maps.xml", cv2.FILE_STORAGE_READ)
+cv_file = cv2.FileStorage("F:/Assignments 7 sem/FYP/smart_wheel_chair/data_ob/stereo_rectify_maps.xml", cv2.FILE_STORAGE_READ)
 Left_Stereo_Map_x = cv_file.getNode("Left_Stereo_Map_x").mat()
 Left_Stereo_Map_y = cv_file.getNode("Left_Stereo_Map_y").mat()
 Right_Stereo_Map_x = cv_file.getNode("Right_Stereo_Map_x").mat()
@@ -41,7 +41,7 @@ min_depth = 50 # minimum distance the setup can measure (in cm)
 depth_thresh = 200.0 # Threshold for SAFE distance (in cm)
 
 # Reading the stored the StereoBM parameters
-cv_file = cv2.FileStorage("F:/Assignments 7 sem/FYP/smart_wheel_chair/data/depth_estmation_params_py.xml", cv2.FILE_STORAGE_READ)
+cv_file = cv2.FileStorage("F:/Assignments 7 sem/FYP/smart_wheel_chair/data_ob/depth_estmation_params_py.xml", cv2.FILE_STORAGE_READ)
 numDisparities = int(cv_file.getNode("numDisparities").real())
 blockSize = int(cv_file.getNode("blockSize").real())
 preFilterType = int(cv_file.getNode("preFilterType").real())
@@ -56,6 +56,14 @@ minDisparity = int(cv_file.getNode("minDisparity").real())
 M = cv_file.getNode("M").real()
 cv_file.release()
 
+# mouse callback function
+def mouse_click(event,x,y,flags,param):
+    global Z
+    if event == cv2.EVENT_LBUTTONDBLCLK:
+        print("Distance = %.2f cm"%depth_map[y,x])	
+                
+cv2.namedWindow('disp',cv2.WINDOW_NORMAL)
+cv2.setMouseCallback('disp',mouse_click)
 output_canvas = None
 
 # Creating an object of StereoBM algorithm
@@ -94,7 +102,9 @@ def obstacle_avoid(st):
     else:
         cv2.putText(output_canvas, "SAFE!", (100,100),1,3,(0,255,0),2,3)
         state = st
-
+    
+    cv2.namedWindow('output_canvas',cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('output_canvas',400,400)
     cv2.imshow('output_canvas',output_canvas)
     return state
     
@@ -105,7 +115,7 @@ while True:
     y_ = []
     state = 1
     
-    ret, imgH = CamH.read()
+    retH, imgH = CamH.read()
     retR, imgR = CamR.read()
     retL, imgL = CamL.read()
     
@@ -144,22 +154,24 @@ while True:
         y2 = int(max(y_) * H) - 10
 
         try:
-            X=np.asarray([data_aux])     
+            X = np.asarray([data_aux])     
             prediction = model.predict(X)
             onehot_encoder = OneHotEncoder(sparse_output=False)
             onehot_encoded = onehot_encoder.fit_transform(np.array([0,1,2,3]).reshape(-1, 1))
             prediction = onehot_encoder.inverse_transform(prediction)
             state = int(prediction[0])
             print(int(prediction[0]))
+
+            cv2.rectangle(imgH, (x1, y1), (x2, y2), (0, 0, 0), 4)
+            cv2.putText(imgH, state, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3,
+                        cv2.LINE_AA)
         
         except:
             pass
-        
     
     elif retL and retR:
         
         output_canvas = imgL.copy()
-
         imgR_gray = cv2.cvtColor(imgR,cv2.COLOR_BGR2GRAY)
         imgL_gray = cv2.cvtColor(imgL,cv2.COLOR_BGR2GRAY)
 
@@ -211,15 +223,14 @@ while True:
 
         state = obstacle_avoid(state)
         
-        cv2.resizeWindow("disp",700,700)
+        cv2.resizeWindow("disp",400,400)
         cv2.imshow("disp",disparity)
-
-        if cv2.waitKey(1) == 27:
-            break
     
     else:
         CamL = cv2.VideoCapture(CamL_id)
         CamR = cv2.VideoCapture(CamR_id)
 
-    cv2.imshow('frame', imgH)
+    cv2.namedWindow('Hand gesture',cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Hand gesture",400,400)
+    cv2.imshow('Hand gesture', imgH)
     cv2.waitKey(1)
