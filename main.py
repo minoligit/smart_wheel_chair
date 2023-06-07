@@ -4,10 +4,12 @@ import mediapipe as mp
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 from tensorflow import keras
+import serial
+arduinoData = serial.Serial('com3',115200)
 
-CamH_id = 0 # Camera ID for hand gesture
-CamL_id = 1 # Camera ID for left camera
-CamR_id = 2 # Camera ID for right camera
+CamH_id = 2 # Camera ID for hand gesture
+CamL_id = 0 # Camera ID for left camera
+CamR_id = 1 # Camera ID for right camera
 
 CamH = cv2.VideoCapture(CamH_id)
 CamL = cv2.VideoCapture(CamL_id)
@@ -16,7 +18,10 @@ CamR = cv2.VideoCapture(CamR_id)
 # Load the model for hand gesture recognition
 model_dict = pickle.load(open('./hand_gesture_model.p', 'rb'))
 model = model_dict['model']
-labels_dict = {0: 'forward', 1: 'stop', 2: 'turn left', 3:'turn right'}
+labels_dict = {0: 'FORWARD', 1: 'STOP', 2: 'LEFT', 3:'RIGHT'}
+h_state = 1
+o_state = 1
+f_state = 1
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
@@ -55,6 +60,21 @@ disp12MaxDiff = int(cv_file.getNode("disp12MaxDiff").real())
 minDisparity = int(cv_file.getNode("minDisparity").real())
 M = cv_file.getNode("M").real()
 cv_file.release()
+
+def find_state(h_state,o_state):
+    if(h_state==1 and o_state==1):
+        f_state = 1
+    elif(h_state==2):
+        f_state = 2
+    elif(h_state==3):
+        f_state = 3
+    elif(h_state==0):
+        f_state = 0
+    else:
+        f_state = h_state
+    
+    print("Final state : ",f_state)
+    arduinoData.write(str(f_state).encode())
 
 # mouse callback function
 def mouse_click(event,x,y,flags,param):
@@ -98,10 +118,12 @@ def obstacle_avoid(st):
             cv2.putText(output_canvas, "Object at", (x+5,y), 1, 2, (100,10,25), 2, 2)
             cv2.putText(output_canvas, "%.2f cm"%depth_mean, (x+5,y+40), 1, 2, (100,10,25), 2, 2)
             state = 1
+            find_state(h_state,state)
 
     else:
         cv2.putText(output_canvas, "SAFE!", (100,100),1,3,(0,255,0),2,3)
         state = st
+        find_state(h_state,state)
     
     cv2.namedWindow('output_canvas',cv2.WINDOW_NORMAL)
     cv2.resizeWindow('output_canvas',400,400)
@@ -113,7 +135,6 @@ while True:
     data_aux = []
     x_ = []
     y_ = []
-    state = 1
     
     retH, imgH = CamH.read()
     retR, imgR = CamR.read()
@@ -159,11 +180,12 @@ while True:
             onehot_encoder = OneHotEncoder(sparse_output=False)
             onehot_encoded = onehot_encoder.fit_transform(np.array([0,1,2,3]).reshape(-1, 1))
             prediction = onehot_encoder.inverse_transform(prediction)
-            state = int(prediction[0])
-            print(int(prediction[0]))
+            h_state = int(prediction[0])
+            find_state(h_state,o_state)
+            print(h_state)
 
             cv2.rectangle(imgH, (x1, y1), (x2, y2), (0, 0, 0), 4)
-            cv2.putText(imgH, state, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3,
+            cv2.putText(imgH, h_state, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3,
                         cv2.LINE_AA)
         
         except:
@@ -220,8 +242,7 @@ while True:
 
         mask_temp = cv2.inRange(depth_map,min_depth,max_depth)
         depth_map = cv2.bitwise_and(depth_map,depth_map,mask=mask_temp)
-
-        state = obstacle_avoid(state)
+        obstacle_avoid(o_state)
         
         cv2.resizeWindow("disp",400,400)
         cv2.imshow("disp",disparity)
@@ -230,7 +251,10 @@ while True:
         CamL = cv2.VideoCapture(CamL_id)
         CamR = cv2.VideoCapture(CamR_id)
 
+
     cv2.namedWindow('Hand gesture',cv2.WINDOW_NORMAL)
     cv2.resizeWindow("Hand gesture",400,400)
     cv2.imshow('Hand gesture', imgH)
     cv2.waitKey(1)
+
+    
